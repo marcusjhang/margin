@@ -1,0 +1,98 @@
+name: Margin
+options:
+  bundleIdPrefix: ai.margin
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  MarginCore:
+    type: library.static
+    platform: macOS
+    sources:
+      - Sources/MarginCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.margin.core
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  MarginUI:
+    type: library.static
+    platform: macOS
+    sources:
+      - Sources/MarginUI
+    dependencies:
+      - target: MarginCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.margin.ui
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  Margin:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/MarginApp
+    dependencies:
+      - target: MarginCore
+        embed: false
+      - target: MarginUI
+        embed: false
+    info:
+      path: Sources/MarginApp/Info.plist
+      properties:
+        CFBundleDisplayName: Margin
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "MIT License"
+        NSPrincipalClass: NSApplication
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.margin.app
+    scheme:
+      testTargets:
+        - MarginCoreTests
+
+  MarginCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/MarginCoreTests
+    dependencies:
+      - target: MarginCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.margin.core.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  MarginPreview:
+    type: tool
+    platform: macOS
+    sources:
+      - Tools/MarginPreview
+    dependencies:
+      - target: MarginCore
+      - target: MarginUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.margin.preview
+    scheme: {}

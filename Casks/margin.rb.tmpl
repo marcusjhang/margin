@@ -1,0 +1,26 @@
+# Template — the release workflow renders this with real values and publishes
+# it as `margin.rb` on the GitHub Release. Do not commit a rendered cask with
+# placeholder values.
+cask "margin" do
+  version "{{VERSION}}"
+  sha256 "{{SHA256}}"
+
+  url "{{URL}}"
+  name "Margin"
+  desc "Local-first capacity meter for Claude and Codex"
+  homepage "{{HOMEPAGE}}"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  depends_on macos: ">= :sonoma"
+
+  app "Margin.app"
+
+  zap trash: [
+    "~/Library/Preferences/ai.margin.app.plist",
+    "~/Library/Application Support/Margin",
+  ]
+end

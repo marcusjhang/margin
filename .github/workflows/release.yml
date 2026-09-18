@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.6.0
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [[ -z "${MACOS_CERTIFICATE_P12:-}" ]]; then
+            echo "No signing certificate provided; building an unsigned DMG."
+            exit 0
+          fi
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import cert.p12 -k build.keychain \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain >/dev/null
+          rm -f cert.p12
+
+      - name: Package DMG
+        env:
+          VERSION: ${{ github.ref_name }}
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          chmod +x Scripts/package.sh
+          VERSION="${VERSION#v}" ./Scripts/package.sh
+
+      - name: Generate Homebrew cask
+        env:
+          VERSION: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          VERSION="${VERSION#v}"
+          DMG="dist/Margin-$VERSION.dmg"
+          SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+          sed \
+            -e "s/{{VERSION}}/$VERSION/g" \
+            -e "s/{{SHA256}}/$SHA/g" \
+            -e "s#{{URL}}#https://github.com/$REPO/releases/download/v$VERSION/Margin-$VERSION.dmg#g" \
+            -e "s#{{HOMEPAGE}}#https://github.com/$REPO#g" \
+            Casks/margin.rb.tmpl > dist/margin.rb
+          echo "cask sha256: $SHA"
+
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.2.2
+        with:
+          files: |
+            dist/*.dmg
+            dist/margin.rb
+          generate_release_notes: true
