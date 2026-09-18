@@ -3,10 +3,14 @@ import Foundation
 public struct CodexProvider: UsageProvider {
     public let id = ProviderID.codex
 
-    public init() {}
+    private let root: URL?
+
+    public init(root: URL? = nil) {
+        self.root = root
+    }
 
     public func load() async -> ProviderSnapshot? {
-        guard let snapshot = CodexRolloutScanner.latestSnapshot() else { return nil }
+        guard let snapshot = CodexRolloutScanner.latestSnapshot(root: root) else { return nil }
 
         let cache = PlanCache()
         let plan: String?
@@ -15,7 +19,7 @@ public struct CodexProvider: UsageProvider {
         } else if let stored = cache.resolve(nil, for: .codex) {
             plan = stored
         } else {
-            plan = CodexRolloutScanner.lastKnownPlanType().flatMap { cache.resolve($0, for: .codex) }
+            plan = CodexRolloutScanner.lastKnownPlanType(root: root).flatMap { cache.resolve($0, for: .codex) }
         }
 
         // When Codex reports the allowance exhausted, the API returns no

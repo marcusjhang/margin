@@ -115,7 +115,7 @@ public final class UsageStore: ObservableObject {
         self.forecasts = forecasts
     }
 
-    private static let backfillKey = "ai.margin.didBackfill"
+    static let backfillKey = "ai.margin.didBackfill"
 
     private func backfillIfNeeded() async {
         guard let history, !UserDefaults.standard.bool(forKey: Self.backfillKey) else { return }

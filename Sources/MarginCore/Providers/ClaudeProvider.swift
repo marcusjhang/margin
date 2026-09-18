@@ -3,13 +3,17 @@ import Foundation
 public struct ClaudeProvider: UsageProvider {
     public let id = ProviderID.claude
 
-    public init() {}
+    private let configURL: URL?
+
+    public init(configURL: URL? = nil) {
+        self.configURL = configURL
+    }
 
     public func load() async -> ProviderSnapshot? {
-        let configURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude.json")
+        let url = configURL
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude.json")
 
-        guard let data = try? Data(contentsOf: configURL),
+        guard let data = try? Data(contentsOf: url),
               let cached = ClaudeUsageParser.parseCachedUsage(data) else {
             return nil
         }
