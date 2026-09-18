@@ -52,10 +52,19 @@ public struct PopoverView: View {
                         .foregroundStyle(.secondary)
                 }
                 if let snapshot = selected {
-                    Text(UsageFormat.relative(snapshot.updatedAt))
-                        .font(.caption)
-                        .foregroundStyle(Date().timeIntervalSince(snapshot.updatedAt) > 900 ? Color.orange : Color.secondary)
-                        .help("When the source data was last written")
+                    // Shows when we last checked (updates on Refresh). Turns
+                    // amber when the underlying data is old, so a fresh check
+                    // of stale data can't look fresh.
+                    TimelineView(.periodic(from: .now, by: 15)) { _ in
+                        let checked = store.lastUpdated ?? snapshot.updatedAt
+                        let sourceAge = Date().timeIntervalSince(snapshot.updatedAt)
+                        Text(UsageFormat.relative(checked))
+                            .font(.caption)
+                            .foregroundStyle(sourceAge > 900 ? Color.orange : Color.secondary)
+                            .help(sourceAge > 900
+                                  ? "Usage data is \(UsageFormat.relative(snapshot.updatedAt)) old — run Claude Code or Codex to refresh it"
+                                  : "Last checked \(UsageFormat.relative(checked))")
+                    }
                 }
             }
             .frame(width: 108, alignment: .trailing)
@@ -105,9 +114,20 @@ public struct PopoverView: View {
             Button {
                 Task { await store.refresh() }
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                HStack(spacing: 4) {
+                    if store.isRefreshing {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    Text(store.isRefreshing ? "Checking…" : "Refresh")
+                        .font(.subheadline)
+                }
             }
             .disabled(store.isRefreshing)
+            .help("Re-read usage from Claude Code and Codex data on this Mac")
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
