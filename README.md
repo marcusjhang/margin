@@ -1,5 +1,7 @@
 # Margin
 
+![CI](https://github.com/marcusjhang/margin/actions/workflows/ci.yml/badge.svg)
+
 A native macOS menu bar app that shows how much runway you have left across
 **Claude** and **Codex** — at a glance, from data already on your machine.
 
