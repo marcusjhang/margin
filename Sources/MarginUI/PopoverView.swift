@@ -133,7 +133,7 @@ public struct PopoverView: View {
                 }
             }
             .disabled(store.isRefreshing)
-            .help("Re-read usage from Claude Code and Codex data on this Mac")
+            .help("Check live usage now (falls back to local data)")
         }
         .buttonStyle(.borderless)
         .controlSize(.small)

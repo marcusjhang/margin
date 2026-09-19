@@ -59,12 +59,10 @@ public final class UsageStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        if forceLive { LiveUsageCache.shared.invalidate() }
-
         let providers = self.providers
         let loaded = await withTaskGroup(of: ProviderSnapshot?.self) { group -> [ProviderSnapshot] in
             for provider in providers {
-                group.addTask { await provider.load() }
+                group.addTask { await provider.load(forceLive: forceLive) }
             }
             var results: [ProviderSnapshot] = []
             for await snapshot in group {

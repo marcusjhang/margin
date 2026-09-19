@@ -31,6 +31,19 @@ public enum UsageFormat {
         }
     }
 
+    /// Epoch value as a date, accepting seconds or milliseconds.
+    public static func date(fromEpoch value: NSNumber) -> Date {
+        let raw = value.doubleValue
+        return Date(timeIntervalSince1970: raw > 1_000_000_000_000 ? raw / 1000 : raw)
+    }
+
+    /// A reset more than half a day out is the weekly window, otherwise the
+    /// short session window.
+    public static func windowMinutes(forReset reset: Date?, now: Date = Date()) -> Int {
+        guard let reset else { return 10080 }
+        return reset.timeIntervalSince(now) > 12 * 3600 ? 10080 : 300
+    }
+
     public static func countdown(until date: Date, now: Date = Date()) -> String {
         let interval = date.timeIntervalSince(now)
         guard interval.isFinite else { return "—" }

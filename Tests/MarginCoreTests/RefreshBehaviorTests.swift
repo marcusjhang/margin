@@ -12,6 +12,7 @@ final class RefreshBehaviorTests: XCTestCase {
         private let lock = NSLock()
         private var script: [ProviderSnapshot?]
         private var _loads = 0
+        private var _lastForce = false
         var delay: TimeInterval = 0
 
         init(id: ProviderID, results: [ProviderSnapshot?] = []) {
@@ -24,9 +25,15 @@ final class RefreshBehaviorTests: XCTestCase {
             return _loads
         }
 
-        func load() async -> ProviderSnapshot? {
+        var lastForce: Bool {
+            lock.lock(); defer { lock.unlock() }
+            return _lastForce
+        }
+
+        func load(forceLive: Bool) async -> ProviderSnapshot? {
             lock.lock()
             _loads += 1
+            _lastForce = forceLive
             let delay = self.delay
             let result: ProviderSnapshot?
             if script.isEmpty {
@@ -183,6 +190,16 @@ final class RefreshBehaviorTests: XCTestCase {
         let forecast = try? XCTUnwrap(store.forecasts[key])
         XCTAssertNotNil(forecast)
         XCTAssertGreaterThan(forecast?.burnRatePerHour ?? 0, 0)
+    }
+
+    func testForcedRefreshIsPassedToProviders() async {
+        let claude = StubProvider(id: .claude, results: [snapshot(.claude, 1)])
+        let store = UsageStore(providers: [claude], history: .inMemory())
+        await store.refresh(forceLive: true)
+        XCTAssertTrue(claude.lastForce)
+
+        await store.refresh()
+        XCTAssertFalse(claude.lastForce)
     }
 
     func testRefreshWithNoProvidersPublishesEmpty() async {

@@ -118,8 +118,7 @@ public enum ClaudeUsageParser {
 
     static func dateValue(_ value: Any?) -> Date? {
         if let number = value as? NSNumber {
-            let raw = number.doubleValue
-            return Date(timeIntervalSince1970: raw > 1_000_000_000_000 ? raw / 1000 : raw)
+            return UsageFormat.date(fromEpoch: number)
         }
         guard let string = value as? String else { return nil }
         let cleaned = string.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)

@@ -3,20 +3,30 @@ import Foundation
 /// Fetches Codex subscription usage from OpenAI's ChatGPT backend using the
 /// token in `~/.codex/auth.json`.
 ///
-/// Read-only — never refreshes or writes the token. Returns nil on any failure
-/// so the caller can fall back to local rollout logs.
+/// Read-only — never refreshes or writes the token. On any failure it returns
+/// the last known live value if there is one, otherwise nil so the caller can
+/// fall back to local rollout logs.
 enum CodexLiveClient {
     private static let endpoint = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
 
     static func usage(
+        force: Bool = false,
         cache: LiveUsageCache = .shared,
-        session: URLSession = .shared
+        session: URLSession = LiveSession.shared
     ) async -> LiveUsage? {
-        if let cached = cache.cached(.codex) { return cached }
-        guard let auth = auth(), let data = await fetch(auth: auth, session: session) else { return nil }
-        guard let usage = parse(data: data) else { return nil }
-        cache.store(.codex, usage: usage)
-        return usage
+        guard cache.shouldAttempt(.codex, force: force) else {
+            return cache.usage(.codex, allowStale: true)
+        }
+        cache.noteAttempt(.codex)
+
+        if let auth = auth(),
+           let data = await fetch(auth: auth, session: session),
+           let parsed = parse(data: data) {
+            cache.store(.codex, usage: parsed)
+            return parsed
+        }
+
+        return cache.usage(.codex, allowStale: true)
     }
 
     /// Pure parser (used by tests).
@@ -26,17 +36,20 @@ enum CodexLiveClient {
         let rateLimit = root["rate_limit"] as? [String: Any]
         var windows = windows(from: rateLimit)
 
-        // A reached limit with no window data still means "capped".
+        // A reached limit with no window data still means "capped". Infer the
+        // window from how far out it resets, like the local path.
         if windows.isEmpty,
            (rateLimit?["limit_reached"] as? Bool) == true || (rateLimit?["allowed"] as? Bool) == false,
            let reset = (rateLimit?["primary_window"] as? [String: Any])?["reset_at"] as? NSNumber {
+            let resetsAt = UsageFormat.date(fromEpoch: reset)
+            let minutes = UsageFormat.windowMinutes(forReset: resetsAt, now: now)
             windows = [UsageWindow(
                 id: "primary",
-                kind: .weekly,
-                label: "weekly",
+                kind: UsageFormat.windowKind(minutes: minutes),
+                label: UsageFormat.windowLabel(minutes: minutes),
                 usedPercent: 100,
-                windowMinutes: 10080,
-                resetsAt: Date(timeIntervalSince1970: reset.doubleValue),
+                windowMinutes: minutes,
+                resetsAt: resetsAt,
                 reportedSeverity: .critical
             )]
         }
@@ -59,7 +72,7 @@ enum CodexLiveClient {
               used.isFinite else { return nil }
         let seconds = (dict["limit_window_seconds"] as? NSNumber)?.intValue ?? 0
         let minutes = seconds > 0 ? seconds / 60 : nil
-        let resetsAt = (dict["reset_at"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
+        let resetsAt = (dict["reset_at"] as? NSNumber).map { UsageFormat.date(fromEpoch: $0) }
         return UsageWindow(
             id: id,
             kind: minutes.map(UsageFormat.windowKind) ?? .weekly,
@@ -73,7 +86,6 @@ enum CodexLiveClient {
     private static func fetch(auth: (token: String, accountID: String), session: URLSession) async -> Data? {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
-        request.timeoutInterval = 8
         request.setValue("Bearer \(auth.token)", forHTTPHeaderField: "Authorization")
         request.setValue(auth.accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
         request.setValue("Margin", forHTTPHeaderField: "User-Agent")

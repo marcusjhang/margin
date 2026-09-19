@@ -11,8 +11,8 @@ public struct CodexProvider: UsageProvider {
         self.live = live
     }
 
-    public func load() async -> ProviderSnapshot? {
-        if live, let usage = await CodexLiveClient.usage() {
+    public func load(forceLive: Bool) async -> ProviderSnapshot? {
+        if live, let usage = await CodexLiveClient.usage(force: forceLive) {
             return ProviderSnapshot(
                 provider: .codex,
                 planLabel: usage.planLabel,
@@ -41,7 +41,7 @@ public struct CodexProvider: UsageProvider {
         // window snapshot — synthesise a capped window using the reset time
         // from the limit error. Infer which window from how far out it resets.
         if snapshot.limitReached, snapshot.windows.isEmpty {
-            let minutes = windowMinutes(forReset: snapshot.resetHint)
+            let minutes = UsageFormat.windowMinutes(forReset: snapshot.resetHint)
             let window = UsageWindow(
                 id: "primary",
                 kind: UsageFormat.windowKind(minutes: minutes),
@@ -67,12 +67,5 @@ public struct CodexProvider: UsageProvider {
             provenance: .local,
             updatedAt: snapshot.updatedAt ?? Date()
         )
-    }
-
-    /// A reset more than half a day out is the weekly window, otherwise the
-    /// short session window.
-    private func windowMinutes(forReset reset: Date?) -> Int {
-        guard let reset else { return 10080 }
-        return reset.timeIntervalSinceNow > 12 * 3600 ? 10080 : 300
     }
 }

@@ -108,19 +108,35 @@ final class LiveUsageTests: XCTestCase {
 
     // MARK: Cache
 
-    func testCacheReturnsWithinTTLAndInvalidates() {
-        let cache = LiveUsageCache(ttl: 60)
-        XCTAssertNil(cache.cached(.claude))
+    func testCacheFreshWithinTTLAndInvalidates() {
+        let cache = LiveUsageCache(ttl: 60, forceFloor: 20)
+        XCTAssertNil(cache.usage(.claude, allowStale: false))
         cache.store(.claude, usage: LiveUsage(windows: [], planLabel: nil, fetchedAt: Date()))
-        XCTAssertNotNil(cache.cached(.claude))
-        XCTAssertNil(cache.cached(.codex), "providers are cached independently")
+        XCTAssertNotNil(cache.usage(.claude, allowStale: false))
+        XCTAssertNil(cache.usage(.codex, allowStale: false), "providers are cached independently")
         cache.invalidate()
-        XCTAssertNil(cache.cached(.claude))
+        XCTAssertNil(cache.usage(.claude, allowStale: false))
     }
 
-    func testCacheExpiresAfterTTL() {
-        let cache = LiveUsageCache(ttl: 0)
+    func testStaleValueIsReturnedOnlyWhenAllowed() {
+        let cache = LiveUsageCache(ttl: 0, forceFloor: 0)
         cache.store(.codex, usage: LiveUsage(windows: [], planLabel: nil, fetchedAt: Date()))
-        XCTAssertNil(cache.cached(.codex), "ttl 0 means always stale")
+        XCTAssertNil(cache.usage(.codex, allowStale: false), "ttl 0 is immediately stale")
+        XCTAssertNotNil(cache.usage(.codex, allowStale: true), "stale is still available as a fallback")
+    }
+
+    func testForceFloorBoundsForcedAttempts() {
+        let cache = LiveUsageCache(ttl: 120, forceFloor: 20)
+        let now = Date()
+        XCTAssertTrue(cache.shouldAttempt(.claude, force: false, now: now))
+        cache.noteAttempt(.claude, now: now)
+
+        XCTAssertFalse(cache.shouldAttempt(.claude, force: false, now: now.addingTimeInterval(30)),
+                       "non-forced attempts are limited by ttl")
+        XCTAssertFalse(cache.shouldAttempt(.claude, force: true, now: now.addingTimeInterval(5)),
+                       "forced attempts are limited by forceFloor")
+        XCTAssertTrue(cache.shouldAttempt(.claude, force: true, now: now.addingTimeInterval(25)))
+        XCTAssertTrue(cache.shouldAttempt(.claude, force: false, now: now.addingTimeInterval(200)))
+        XCTAssertTrue(cache.shouldAttempt(.codex, force: false, now: now), "independent per provider")
     }
 }

@@ -165,7 +165,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         isHoverShown = hover
         lastShownAt = Date()
-        Task { await store.refresh(forceLive: true) }
+        // Hover re-reads, but respects the live cache TTL so it can't hammer
+        // the endpoints; the explicit Refresh button forces.
+        Task { await store.refresh() }
         if hover {
             startProximity()
         } else {
@@ -208,7 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func refreshNow() {
-        Task { await store.refresh() }
+        Task { await store.refresh(forceLive: true) }
     }
 
     @objc private func quit() {

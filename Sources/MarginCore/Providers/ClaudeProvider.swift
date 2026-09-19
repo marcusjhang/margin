@@ -11,8 +11,8 @@ public struct ClaudeProvider: UsageProvider {
         self.live = live
     }
 
-    public func load() async -> ProviderSnapshot? {
-        if live, let usage = await ClaudeLiveClient.usage() {
+    public func load(forceLive: Bool) async -> ProviderSnapshot? {
+        if live, let usage = await ClaudeLiveClient.usage(force: forceLive) {
             return ProviderSnapshot(
                 provider: .claude,
                 planLabel: usage.planLabel,
