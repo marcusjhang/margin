@@ -165,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         isHoverShown = hover
         lastShownAt = Date()
-        Task { await store.refresh() }
+        Task { await store.refresh(forceLive: true) }
         if hover {
             startProximity()
         } else {

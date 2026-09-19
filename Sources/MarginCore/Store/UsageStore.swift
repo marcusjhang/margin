@@ -54,10 +54,12 @@ public final class UsageStore: ObservableObject {
         timer = nil
     }
 
-    public func refresh() async {
+    public func refresh(forceLive: Bool = false) async {
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
+
+        if forceLive { LiveUsageCache.shared.invalidate() }
 
         let providers = self.providers
         let loaded = await withTaskGroup(of: ProviderSnapshot?.self) { group -> [ProviderSnapshot] in

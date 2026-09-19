@@ -21,6 +21,14 @@ public enum ClaudeUsageParser {
         let updatedAt = (cached["fetchedAtMs"] as? NSNumber)
             .map { Date(timeIntervalSince1970: $0.doubleValue / 1000) } ?? now
 
+        let windows = windows(from: utilization)
+        guard !windows.isEmpty else { return nil }
+        return CachedUsage(windows: windows, updatedAt: updatedAt)
+    }
+
+    /// Parses a Claude `utilization` object (used by both the local cache and
+    /// the live OAuth usage endpoint, which share this shape).
+    static func windows(from utilization: [String: Any]) -> [UsageWindow] {
         // Prefer the generalized `limits` array — it carries provider-reported
         // severity and model-scoped weekly caps. Fall back to named windows.
         var windows = limits(from: utilization)
@@ -37,9 +45,7 @@ public enum ClaudeUsageParser {
                 }
             }
         }
-
-        guard !windows.isEmpty else { return nil }
-        return CachedUsage(windows: windows, updatedAt: updatedAt)
+        return windows
     }
 
     private static func limits(from utilization: [String: Any]) -> [UsageWindow] {

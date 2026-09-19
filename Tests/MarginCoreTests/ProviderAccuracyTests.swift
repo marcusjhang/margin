@@ -44,7 +44,7 @@ final class ProviderAccuracyTests: XCTestCase {
         try claudeFixture().write(to: url)
 
         let raw = try XCTUnwrap(ClaudeUsageParser.parseCachedUsage(claudeFixture()))
-        let loaded = await ClaudeProvider(configURL: url).load()
+        let loaded = await ClaudeProvider(configURL: url, live: false).load()
         let snapshot = try XCTUnwrap(loaded)
 
         XCTAssertEqual(snapshot.windows.map(\.id), raw.windows.map(\.id))
@@ -57,7 +57,7 @@ final class ProviderAccuracyTests: XCTestCase {
 
     func testClaudeProviderReturnsNilWhenFileMissing() async {
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent("nope-\(UUID().uuidString).json")
-        let loaded = await ClaudeProvider(configURL: missing).load()
+        let loaded = await ClaudeProvider(configURL: missing, live: false).load()
         XCTAssertNil(loaded)
     }
 
@@ -91,7 +91,7 @@ final class ProviderAccuracyTests: XCTestCase {
         let root = try makeDir()
         try writeCodex([tokenCount(percent: 16, minutes: 10080, plan: "pro")], to: root)
 
-        let loaded = await CodexProvider(root: root).load()
+        let loaded = await CodexProvider(root: root, live: false).load()
         let snapshot = try XCTUnwrap(loaded)
         XCTAssertEqual(snapshot.windows.map(\.id), ["primary"])
         XCTAssertEqual(snapshot.windows.first?.usedPercent, 16)
@@ -106,7 +106,7 @@ final class ProviderAccuracyTests: XCTestCase {
             capError(resetText: formatted(Date().addingTimeInterval(2 * 86_400)))
         ], to: root)
 
-        let loaded = await CodexProvider(root: root).load()
+        let loaded = await CodexProvider(root: root, live: false).load()
         let snapshot = try XCTUnwrap(loaded)
         XCTAssertEqual(snapshot.windows.count, 1)
         XCTAssertEqual(snapshot.windows.first?.usedPercent, 100)
@@ -119,7 +119,7 @@ final class ProviderAccuracyTests: XCTestCase {
         let root = try makeDir()
         try writeCodex([capError(resetText: formatted(Date().addingTimeInterval(2 * 3600)))], to: root)
 
-        let loaded = await CodexProvider(root: root).load()
+        let loaded = await CodexProvider(root: root, live: false).load()
         let snapshot = try XCTUnwrap(loaded)
         XCTAssertEqual(snapshot.windows.first?.label, "5-hour session")
         XCTAssertEqual(snapshot.windows.first?.usedPercent, 100)
@@ -127,7 +127,7 @@ final class ProviderAccuracyTests: XCTestCase {
 
     func testCodexProviderReturnsNilForEmptyRoot() async throws {
         let root = try makeDir()
-        let loaded = await CodexProvider(root: root).load()
+        let loaded = await CodexProvider(root: root, live: false).load()
         XCTAssertNil(loaded)
     }
 }

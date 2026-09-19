@@ -57,19 +57,29 @@ make run     # generate, build, and launch
 make test    # unit + local integration tests
 ```
 
-## What it reads
+## Where the data comes from
 
-Everything is **read-only**.
+**Live (default).** Margin asks each provider's own usage endpoint, using the
+token that is already on your Mac — it never refreshes or writes a credential:
+
+| Provider | Endpoint | Auth |
+|---|---|---|
+| Claude | `api.anthropic.com/api/oauth/usage` | access token in the login Keychain (`Claude Code-credentials`) |
+| Codex | `chatgpt.com/backend-api/wham/usage` | access token in `~/.codex/auth.json` |
+
+Requests are read-only, fire at most once every couple of minutes, and fall back
+silently. A green dot in the panel means the numbers are live.
+
+**Local fallback.** If a token is missing/expired or the network is unavailable,
+Margin reads what Claude Code and Codex already write to disk:
 
 | Provider | Source | Provenance |
 |---|---|---|
 | Claude | `~/.claude.json` → `cachedUsageUtilization` | `cached` |
-| Claude | Keychain `Claude Code-credentials` — plan label only | `cached` |
 | Codex | `~/.codex/sessions/**/rollout-*.jsonl` → `rate_limits` | `local` |
 
-The keychain is read through the system `/usr/bin/security` binary so macOS
-shows **no ACL prompt** and Margin never stamps its own code signature onto
-Claude Code's credential item. Margin never writes to another app's credentials.
+Either way nothing is sent anywhere except the two first-party endpoints above,
+and no usage data leaves your machine.
 
 ## Menu bar styles
 

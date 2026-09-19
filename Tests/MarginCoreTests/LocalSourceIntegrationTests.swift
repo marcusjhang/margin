@@ -45,7 +45,7 @@ final class LocalSourceIntegrationTests: XCTestCase {
     }
 
     func testCodexProviderResolvesPlanAndWindows() async throws {
-        guard let snapshot = await CodexProvider().load() else {
+        guard let snapshot = await CodexProvider(live: false).load() else {
             throw XCTSkip("no codex data")
         }
         print("Codex provider plan:", snapshot.planLabel ?? "-",
@@ -60,7 +60,7 @@ final class LocalSourceIntegrationTests: XCTestCase {
               let raw = ClaudeUsageParser.parseCachedUsage(data) else {
             throw XCTSkip("no claude cache")
         }
-        let loaded = await ClaudeProvider().load()
+        let loaded = await ClaudeProvider(live: false).load()
         let snapshot = try XCTUnwrap(loaded)
 
         XCTAssertEqual(snapshot.windows.map(\.id), raw.windows.map(\.id))

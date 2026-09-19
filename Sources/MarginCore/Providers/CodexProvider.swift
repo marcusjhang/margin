@@ -4,12 +4,27 @@ public struct CodexProvider: UsageProvider {
     public let id = ProviderID.codex
 
     private let root: URL?
+    private let live: Bool
 
-    public init(root: URL? = nil) {
+    public init(root: URL? = nil, live: Bool = true) {
         self.root = root
+        self.live = live
     }
 
     public func load() async -> ProviderSnapshot? {
+        if live, let usage = await CodexLiveClient.usage() {
+            return ProviderSnapshot(
+                provider: .codex,
+                planLabel: usage.planLabel,
+                windows: usage.windows,
+                provenance: .live,
+                updatedAt: usage.fetchedAt
+            )
+        }
+        return localSnapshot()
+    }
+
+    private func localSnapshot() -> ProviderSnapshot? {
         guard let snapshot = CodexRolloutScanner.latestSnapshot(root: root) else { return nil }
 
         let cache = PlanCache()

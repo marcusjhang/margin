@@ -52,6 +52,12 @@ public struct PopoverView: View {
                         .foregroundStyle(.secondary)
                 }
                 if let snapshot = selected {
+                    Circle()
+                        .fill(snapshot.provenance == .live ? Color.green : Color.secondary.opacity(0.5))
+                        .frame(width: 5, height: 5)
+                        .help(snapshot.provenance == .live
+                              ? "Live from the provider"
+                              : "From local files on this Mac")
                     // Shows when we last checked (updates on Refresh). Turns
                     // amber when the underlying data is old, so a fresh check
                     // of stale data can't look fresh.
@@ -67,7 +73,7 @@ public struct PopoverView: View {
                     }
                 }
             }
-            .frame(width: 108, alignment: .trailing)
+            .frame(width: 122, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -112,7 +118,7 @@ public struct PopoverView: View {
             }
             Spacer()
             Button {
-                Task { await store.refresh() }
+                Task { await store.refresh(forceLive: true) }
             } label: {
                 HStack(spacing: 4) {
                     if store.isRefreshing {
