@@ -102,7 +102,7 @@ public struct PopoverView: View {
         VStack(spacing: 5) {
             Text("Nothing to show yet")
                 .font(.headline)
-            Text("Run Claude Code or Codex once and Margin will pick up local usage.")
+            Text("Sign in to Claude Code or Codex on this Mac once, and Margin will show your usage.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

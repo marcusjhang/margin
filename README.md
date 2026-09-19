@@ -70,6 +70,12 @@ token that is already on your Mac — it never refreshes or writes a credential:
 Requests are read-only, fire at most once every couple of minutes, and fall back
 silently. A green dot in the panel means the numbers are live.
 
+> **No connect step.** Margin never asks you to log in. It reuses the credential
+> the official CLI already created, so you need to have signed in to **Claude
+> Code** (`claude`) and/or **Codex** (`codex login`) on this Mac at least once.
+> If a token is missing or expired, Margin falls back to the local files below;
+> if there is no local data either, it shows a "sign in once" empty state.
+
 **Local fallback.** If a token is missing/expired or the network is unavailable,
 Margin reads what Claude Code and Codex already write to disk:
 
@@ -103,6 +109,17 @@ MarginPreview  dev-only snapshot renderer               (tool)
 
 Data flow: `UsageProvider` → `ProviderSnapshot` → `UsageStore` → SwiftUI + the
 AppKit menu bar glyph.
+
+### Verify live access
+
+The suite is hermetic by default. To hit the real Claude and Codex endpoints
+with the tokens on this Mac and print the parsed windows:
+
+```sh
+TEST_RUNNER_MARGIN_LIVE=1 xcodebuild -project Margin.xcodeproj -scheme Margin \
+  -derivedDataPath .build test \
+  -only-testing:MarginCoreTests/LiveEndpointEvalTests
+```
 
 ## Development
 
