@@ -89,8 +89,15 @@ public struct PopoverView: View {
                     }
                     WindowRow(
                         window: window,
-                        forecast: store.forecasts[WindowForecast.key(provider: snapshot.provider, windowID: window.id)]
+                        forecast: store.forecasts[WindowForecast.key(provider: snapshot.provider, windowID: window.id)],
+                        creditsAvailable: snapshot.credits?.isAvailable ?? false
                     )
+                }
+
+                if let credits = snapshot.credits,
+                   credits.enabled || snapshot.windows.contains(where: { $0.usedPercent >= 99.5 }) {
+                    Divider().padding(.leading, 14)
+                    CreditsRow(credits: credits)
                 }
             }
         } else {

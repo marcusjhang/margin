@@ -26,7 +26,8 @@ final class LiveEndpointEvalTests: XCTestCase {
 
         let live = try XCTUnwrap(usage, "Claude endpoint returned nothing (missing/expired token?)")
         print("CLAUDE LIVE:", live.windows.map { "\($0.label)=\($0.usedPercent)%" },
-              "| plan:", live.planLabel ?? "-")
+              "| plan:", live.planLabel ?? "-",
+              "| credits:", live.credits.map { "enabled=\($0.enabled) remaining=\($0.remaining.map { $0 } ?? -1) \($0.currency ?? "") spendLimit=\($0.spendLimitReached)" } ?? "none")
         XCTAssertFalse(live.windows.isEmpty)
         XCTAssertTrue(live.windows.allSatisfy { $0.usedPercent.isFinite })
         XCTAssertTrue(live.windows.contains { $0.kind == .session || $0.kind == .weekly })

@@ -4,6 +4,7 @@ public enum ClaudeUsageParser {
     public struct CachedUsage: Sendable, Equatable {
         public let windows: [UsageWindow]
         public let updatedAt: Date
+        public let credits: Credits?
     }
 
     private static let scopedKeys: [(key: String, label: String)] = [
@@ -23,7 +24,61 @@ public enum ClaudeUsageParser {
 
         let windows = windows(from: utilization)
         guard !windows.isEmpty else { return nil }
-        return CachedUsage(windows: windows, updatedAt: updatedAt)
+        return CachedUsage(windows: windows, updatedAt: updatedAt, credits: credits(from: utilization))
+    }
+
+    /// Reads pay-as-you-go credit state. Handles both the live `spend` block and
+    /// the `extra_usage` block (local cache and live payloads both carry these).
+    static func credits(from container: [String: Any]) -> Credits? {
+        if let spend = container["spend"] as? [String: Any],
+           let credits = credits(fromSpend: spend) {
+            return credits
+        }
+        if let extra = container["extra_usage"] as? [String: Any],
+           let credits = credits(fromExtraUsage: extra) {
+            return credits
+        }
+        return nil
+    }
+
+    private static func credits(fromSpend spend: [String: Any]) -> Credits? {
+        let used = money(spend["used"])
+        let limit = money(spend["limit"])
+        guard used != nil || limit != nil else { return nil }
+        let percent = (spend["percent"] as? NSNumber)?.doubleValue ?? 0
+        return Credits(
+            enabled: (spend["enabled"] as? Bool) ?? false,
+            used: used?.amount,
+            limit: limit?.amount,
+            currency: used?.currency ?? limit?.currency,
+            decimalPlaces: used?.exponent ?? limit?.exponent ?? 2,
+            spendLimitReached: percent >= 99.5
+        )
+    }
+
+    private static func credits(fromExtraUsage extra: [String: Any]) -> Credits? {
+        let exponent = (extra["decimal_places"] as? NSNumber)?.intValue ?? 2
+        let divisor = pow(10, Double(max(0, exponent)))
+        let used = (extra["used_credits"] as? NSNumber).map { $0.doubleValue / divisor }
+        let limit = (extra["monthly_limit"] as? NSNumber).map { $0.doubleValue / divisor }
+        guard used != nil || limit != nil else { return nil }
+        let utilization = (extra["utilization"] as? NSNumber)?.doubleValue ?? 0
+        let reached = (extra["spend_limit_reached"] as? Bool) ?? (utilization >= 99.5)
+        return Credits(
+            enabled: (extra["is_enabled"] as? Bool) ?? false,
+            used: used,
+            limit: limit,
+            currency: extra["currency"] as? String,
+            decimalPlaces: exponent,
+            spendLimitReached: reached
+        )
+    }
+
+    private static func money(_ value: Any?) -> (amount: Double, currency: String?, exponent: Int)? {
+        guard let dict = value as? [String: Any],
+              let minor = (dict["amount_minor"] as? NSNumber)?.doubleValue else { return nil }
+        let exponent = (dict["exponent"] as? NSNumber)?.intValue ?? 2
+        return (minor / pow(10, Double(max(0, exponent))), dict["currency"] as? String, exponent)
     }
 
     /// Parses a Claude `utilization` object (used by both the local cache and

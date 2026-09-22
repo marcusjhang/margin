@@ -33,7 +33,8 @@ let snapshots: [ProviderSnapshot] = [
             )
         ],
         provenance: .cached,
-        updatedAt: now.addingTimeInterval(-12)
+        updatedAt: now.addingTimeInterval(-12),
+        credits: Credits(enabled: true, used: 42.42, limit: 50, currency: "SGD", decimalPlaces: 2, spendLimitReached: false)
     ),
     ProviderSnapshot(
         provider: .codex,

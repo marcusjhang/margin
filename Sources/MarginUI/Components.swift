@@ -80,6 +80,7 @@ struct ProviderTabs: View {
 struct WindowRow: View {
     let window: UsageWindow
     let forecast: WindowForecast?
+    var creditsAvailable: Bool = false
 
     var body: some View {
         let tint = Theme.tint(for: window.severity)
@@ -109,7 +110,11 @@ struct WindowRow: View {
                         : "Resets in \(UsageFormat.countdown(until: resetsAt))")
                 }
                 Spacer(minLength: 8)
-                if let trailing = WindowStatus.trailing(usedPercent: window.usedPercent, forecast: forecast) {
+                if let trailing = WindowStatus.trailing(
+                    usedPercent: window.usedPercent,
+                    forecast: forecast,
+                    creditsAvailable: creditsAvailable
+                ) {
                     Text(trailing)
                 }
             }
@@ -128,5 +133,41 @@ struct WindowRow: View {
         case .monthly: return "calendar.badge.clock"
         case .other: return "chart.bar"
         }
+    }
+}
+
+/// Pay-as-you-go credits, shown when they're on or when a plan limit is hit.
+struct CreditsRow: View {
+    let credits: Credits
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "creditcard")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            Text("Credits")
+                .font(.headline)
+            Spacer(minLength: 8)
+            Text(status)
+                .font(.headline)
+                .monospacedDigit()
+                .foregroundStyle(tint)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+    }
+
+    private var status: String {
+        guard credits.enabled else { return "off" }
+        if credits.spendLimitReached { return "spend limit reached" }
+        if let remaining = credits.remaining { return "\(credits.formatted(remaining)) left" }
+        if let used = credits.used { return "\(credits.formatted(used)) used · uncapped" }
+        return "on"
+    }
+
+    private var tint: Color {
+        guard credits.enabled else { return .secondary }
+        return credits.spendLimitReached ? .red : .primary
     }
 }

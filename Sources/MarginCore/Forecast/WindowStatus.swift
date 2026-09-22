@@ -5,8 +5,14 @@ import Foundation
 /// Kept as pure logic (not view code) so the copy is unit-tested and can never
 /// regress into nonsense like "now until limit".
 public enum WindowStatus {
-    public static func trailing(usedPercent: Double, forecast: WindowForecast?) -> String? {
-        if usedPercent >= 99.5 { return "limit reached" }
+    public static func trailing(
+        usedPercent: Double,
+        forecast: WindowForecast?,
+        creditsAvailable: Bool = false
+    ) -> String? {
+        if usedPercent >= 99.5 {
+            return creditsAvailable ? "limit reached · credits" : "limit reached"
+        }
 
         guard let forecast, forecast.isReliable else { return nil }
 

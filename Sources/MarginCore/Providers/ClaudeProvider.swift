@@ -18,7 +18,8 @@ public struct ClaudeProvider: UsageProvider {
                 planLabel: usage.planLabel,
                 windows: usage.windows,
                 provenance: .live,
-                updatedAt: usage.fetchedAt
+                updatedAt: usage.fetchedAt,
+                credits: usage.credits
             )
         }
         return localSnapshot()
@@ -38,7 +39,8 @@ public struct ClaudeProvider: UsageProvider {
             planLabel: ClaudeCredentials.planLabel(),
             windows: cached.windows,
             provenance: .cached,
-            updatedAt: cached.updatedAt
+            updatedAt: cached.updatedAt,
+            credits: cached.credits
         )
     }
 }

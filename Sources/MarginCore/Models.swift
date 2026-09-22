@@ -104,25 +104,74 @@ public struct UsageWindow: Identifiable, Sendable, Equatable {
     }
 }
 
+/// Pay-as-you-go credits that let you keep working after a plan limit.
+public struct Credits: Sendable, Equatable {
+    public let enabled: Bool
+    public let used: Double?
+    public let limit: Double?
+    public let currency: String?
+    public let decimalPlaces: Int
+    public let spendLimitReached: Bool
+
+    public init(
+        enabled: Bool,
+        used: Double?,
+        limit: Double?,
+        currency: String?,
+        decimalPlaces: Int,
+        spendLimitReached: Bool
+    ) {
+        self.enabled = enabled
+        self.used = used
+        self.limit = limit
+        self.currency = currency
+        self.decimalPlaces = decimalPlaces
+        self.spendLimitReached = spendLimitReached
+    }
+
+    public var remaining: Double? {
+        guard let limit, let used else { return nil }
+        return max(0, limit - used)
+    }
+
+    /// Credits are on and there is budget left to absorb a cap. A null limit
+    /// means uncapped pay-as-you-go, which also counts as available.
+    public var isAvailable: Bool {
+        guard enabled, !spendLimitReached else { return false }
+        guard let limit else { return true }
+        return (used ?? 0) < limit
+    }
+
+    public func formatted(_ value: Double) -> String {
+        let places = max(0, min(decimalPlaces, 4))
+        let amount = String(format: "%.\(places)f", value)
+        return currency.map { "\($0) \(amount)" } ?? amount
+    }
+}
+
 public struct ProviderSnapshot: Identifiable, Sendable, Equatable {
     public let provider: ProviderID
     public let planLabel: String?
     public let windows: [UsageWindow]
     public let provenance: Provenance
     public let updatedAt: Date
+    /// Pay-as-you-go credits that extend past a plan limit, when reported.
+    public let credits: Credits?
 
     public init(
         provider: ProviderID,
         planLabel: String?,
         windows: [UsageWindow],
         provenance: Provenance,
-        updatedAt: Date
+        updatedAt: Date,
+        credits: Credits? = nil
     ) {
         self.provider = provider
         self.planLabel = planLabel
         self.windows = windows
         self.provenance = provenance
         self.updatedAt = updatedAt
+        self.credits = credits
     }
 
     public var id: String { provider.rawValue }

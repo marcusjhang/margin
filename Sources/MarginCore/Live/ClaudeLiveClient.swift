@@ -37,7 +37,12 @@ enum ClaudeLiveClient {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         let windows = ClaudeUsageParser.windows(from: root)
         guard !windows.isEmpty else { return nil }
-        return LiveUsage(windows: windows, planLabel: planLabel, fetchedAt: now)
+        return LiveUsage(
+            windows: windows,
+            planLabel: planLabel,
+            credits: ClaudeUsageParser.credits(from: root),
+            fetchedAt: now
+        )
     }
 
     private static func fetch(token: String, session: URLSession) async -> Data? {

@@ -54,6 +54,12 @@ final class WindowStatusTests: XCTestCase {
         XCTAssertEqual(value, "limit reached")
     }
 
+    func testCappedWithCreditsReadsLimitReachedCredits() {
+        let value = WindowStatus.trailing(usedPercent: 100, forecast: nil, creditsAvailable: true)
+        XCTAssertEqual(value, "limit reached · credits")
+        XCTAssertEqual(WindowStatus.trailing(usedPercent: 100, forecast: nil, creditsAvailable: false), "limit reached")
+    }
+
     func testNeverSaysNowUntilLimit() {
         let cases: [(Double, TimeInterval?)] = [(0, 0), (50, 0), (99, 0), (99.4, 1), (100, 0), (100, nil)]
         for (percent, timeToCap) in cases {

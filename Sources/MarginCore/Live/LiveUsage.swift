@@ -4,7 +4,15 @@ import Foundation
 struct LiveUsage {
     let windows: [UsageWindow]
     let planLabel: String?
+    let credits: Credits?
     let fetchedAt: Date
+
+    init(windows: [UsageWindow], planLabel: String?, credits: Credits? = nil, fetchedAt: Date) {
+        self.windows = windows
+        self.planLabel = planLabel
+        self.credits = credits
+        self.fetchedAt = fetchedAt
+    }
 }
 
 /// Cache of live results that also bounds how often we hit the endpoints.
