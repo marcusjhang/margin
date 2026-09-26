@@ -1,6 +1,6 @@
 import Foundation
 
-public enum ProviderID: String, CaseIterable, Identifiable, Sendable {
+public enum ProviderID: String, CaseIterable, Identifiable, Sendable, Codable {
     case claude
     case codex
 
@@ -29,7 +29,7 @@ public enum WindowKind: String, Sendable {
     case other
 }
 
-public enum Provenance: String, Sendable {
+public enum Provenance: String, Sendable, Codable {
     case live
     case official
     case cached
@@ -45,7 +45,7 @@ public enum Provenance: String, Sendable {
     }
 }
 
-public enum Severity: String, Sendable, Equatable {
+public enum Severity: String, Sendable, Equatable, Codable {
     case normal
     case warning
     case critical
