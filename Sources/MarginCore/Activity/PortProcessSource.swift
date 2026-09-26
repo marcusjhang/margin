@@ -23,10 +23,13 @@ public struct PortProcessSource: Sendable {
         }
 
         var result: [LiveState.Listener] = []
+        var seen = Set<String>()
         for socket in sockets {
             // A sysctl socket with no matching same-user process is pid 0
-            // (other user or kernel) and must be skipped.
-            if let owned = procByKey[Self.key(socket)], owned.pid > 0 {
+            // (other user or kernel) and must be skipped. The kernel can expose
+            // several PCB entries for one socket, so dedupe by address+port.
+            let key = Self.key(socket)
+            if let owned = procByKey[key], owned.pid > 0, seen.insert(key).inserted {
                 result.append(owned)
             }
         }

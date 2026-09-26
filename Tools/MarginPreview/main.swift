@@ -82,6 +82,43 @@ let forecasts: [String: WindowForecast] = [
 ]
 
 
+let previewNow = Date()
+let activityEvents: [ActivityEvent] = [
+    ActivityEvent(
+        id: ActivityEvent.makeID(provider: .claude, sessionID: "s1", ordinal: 1, kind: .command, target: "npm run dev"),
+        provider: .claude, sessionID: "s1", timestamp: previewNow.addingTimeInterval(-360),
+        kind: .command, cwd: "/Users/me/src/api", gitBranch: "main",
+        worktree: "/Users/me/src/api", tool: "Bash", target: "npm run dev",
+        provenance: .local, metadata: ["port": "3000"]
+    ),
+    ActivityEvent(
+        id: ActivityEvent.makeID(provider: .claude, sessionID: "s1", ordinal: 2, kind: .fileWrite, target: "Sources/server.ts"),
+        provider: .claude, sessionID: "s1", timestamp: previewNow.addingTimeInterval(-240),
+        kind: .fileWrite, cwd: "/Users/me/src/api", gitBranch: "main",
+        worktree: "/Users/me/src/api", tool: "Edit", target: "Sources/server.ts",
+        provenance: .local
+    ),
+    ActivityEvent(
+        id: ActivityEvent.makeID(provider: .codex, sessionID: "c1", ordinal: 3, kind: .fileWrite, target: "src/app.ts"),
+        provider: .codex, sessionID: "c1", timestamp: previewNow.addingTimeInterval(-120),
+        kind: .fileWrite, cwd: "/Users/me/src/web", gitBranch: "feat/payments",
+        worktree: "/Users/me/src/web", tool: "apply_patch", target: "src/app.ts",
+        provenance: .local
+    )
+]
+let activityAlerts: [MarginCore.Alert] = [
+    MarginCore.Alert(
+        id: MarginCore.Alert.makeID(kind: .exposedPort, sessionID: "s1", target: "0.0.0.0:3000"),
+        kind: .exposedPort, severity: .warning, sessionID: "s1", provider: .claude,
+        title: "Exposed port", detail: "Bound to 0.0.0.0:3000", target: "0.0.0.0:3000",
+        since: previewNow.addingTimeInterval(-360)
+    )
+]
+let activityLive = LiveState(
+    listeners: [LiveState.Listener(port: 3000, address: "0.0.0.0", pid: 1234, processPath: "/usr/bin/node")],
+    activeSessions: ["s1", "c1"]
+)
+
 MainActor.assumeIsolated {
     let captures: [(ColorScheme, String)] = [
         (.light, "margin-popover-light.png"),
@@ -93,8 +130,14 @@ MainActor.assumeIsolated {
             previewSnapshots: snapshots,
             forecasts: forecasts
         )
+        let activity = ActivityStore(
+            previewEvents: activityEvents,
+            alerts: activityAlerts,
+            live: activityLive
+        )
         let view = PopoverView(showsFooter: false)
             .environmentObject(store)
+            .environmentObject(activity)
             .environment(\.colorScheme, scheme)
             .background(scheme == .dark ? Color(white: 0.12) : Color(white: 1.0))
 
