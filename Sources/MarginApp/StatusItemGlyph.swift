@@ -7,12 +7,46 @@ import MarginUI
 enum StatusItemGlyph {
     private static let providers: [ProviderID] = [.claude, .codex]
 
-    static func image(for snapshots: [ProviderSnapshot], style: GlyphStyle) -> NSImage {
-        let image: NSImage
+    static func image(for snapshots: [ProviderSnapshot], style: GlyphStyle, watch: Severity = .normal) -> NSImage {
+        let base: NSImage
         switch style {
-        case .levels: image = levels(snapshots)
-        case .ring: image = ring(snapshots)
-        case .text: image = text(snapshots)
+        case .levels: base = levels(snapshots)
+        case .ring: base = ring(snapshots)
+        case .text: base = text(snapshots)
+        }
+
+        // The watch state is independent of usage severity: a hollow ring for
+        // warnings, a filled dot for critical alerts. Drawn as an extra element
+        // so it never alters the usage bars.
+        guard watch != .normal else {
+            base.isTemplate = true
+            return base
+        }
+
+        let padding: CGFloat = 3
+        let dot: CGFloat = 5
+        let total = NSSize(
+            width: base.size.width + dot + padding,
+            height: max(base.size.height, dot)
+        )
+
+        let image = NSImage(size: total, flipped: false) { rect in
+            let baseY = (total.height - base.size.height) / 2
+            base.draw(at: NSPoint(x: 0, y: baseY), from: .zero, operation: .sourceOver, fraction: 1.0)
+            let dotRect = NSRect(
+                x: base.size.width + padding,
+                y: (total.height - dot) / 2,
+                width: dot,
+                height: dot
+            )
+            let path = NSBezierPath(ovalIn: dotRect)
+            if watch == .critical {
+                path.fill()
+            } else {
+                path.lineWidth = 1.2
+                path.stroke()
+            }
+            return true
         }
         image.isTemplate = true
         return image

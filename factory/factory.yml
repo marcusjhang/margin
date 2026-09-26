@@ -1,14 +1,19 @@
 schemaVersion: psf/v1
 name: default
 description: Default personal software factory.
-runner: mock
-mode: "yolo"          # hitl = human in the loop; yolo = human out (autonomous)
+runner: subprocess
+mode: yolo
 agents:
-  triage:    { prompt: agents/triage.md }
-  spec:      { prompt: agents/spec.md }
-  implement: { prompt: agents/implement.md }
-  verify:    { prompt: agents/verify.md }
-  review:    { prompt: agents/review.md }
+  triage:
+    prompt: agents/triage.md
+  spec:
+    prompt: agents/spec.md
+  implement:
+    prompt: agents/implement.md
+  verify:
+    prompt: agents/verify.md
+  review:
+    prompt: agents/review.md
 gates:
   spec_approval: true
   verify_quorum: 2
@@ -16,11 +21,23 @@ limits:
   max_attempts: 2
 feedback:
   upstream: marcusjhang/personal-software-factory
-  mode: "off"          # off | hint | auto; change anytime with `psf feedback opt-out|opt-in`
+  mode: 'off'
 classifier:
-  provider: "mock"          # mock | jev (TypeSafe). Advisory only.
+  provider: mock
   supervisor:
-    enabled: false           # opt-in: watch a worker and steer/stop/retry
-    thresholds: {needs_human: 0.80, off_track: 0.80, stuck: 0.80, progress: 0.40}
+    enabled: false
+    thresholds:
+      needs_human: 0.8
+      off_track: 0.8
+      stuck: 0.8
+      progress: 0.4
     max_steers: 1
     max_retries: 1
+runnerOptions:
+  command:
+  - /Users/marcusjhang/.local/share/uv/tools/personal-software-factory/bin/python
+  - -m
+  - psf.adapters.claude
+  - --permissions
+  - workspace
+  permissions: workspace
