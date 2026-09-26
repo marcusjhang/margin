@@ -1,0 +1,5 @@
+{
+  "metric": "pass_rate",
+  "epsilon": 0.0,
+  "n_min": 3
+}

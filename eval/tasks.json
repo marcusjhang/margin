@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "id": "t1",
+      "goal": "add a health endpoint",
+      "solves_on_attempt": 1,
+      "source": "seed"
+    },
+    {
+      "id": "t2",
+      "goal": "add CSV export",
+      "solves_on_attempt": 2,
+      "source": "seed"
+    },
+    {
+      "id": "t3",
+      "goal": "add a database migration",
+      "solves_on_attempt": 3,
+      "source": "seed"
+    }
+  ]
+}

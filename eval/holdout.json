@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "id": "h1",
+      "goal": "add a version command",
+      "solves_on_attempt": 1,
+      "source": "seed"
+    },
+    {
+      "id": "h2",
+      "goal": "add pagination",
+      "solves_on_attempt": 2,
+      "source": "seed"
+    },
+    {
+      "id": "h3",
+      "goal": "add retry with backoff",
+      "solves_on_attempt": 3,
+      "source": "seed"
+    }
+  ]
+}
