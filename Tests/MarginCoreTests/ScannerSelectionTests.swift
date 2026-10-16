@@ -79,6 +79,24 @@ final class ScannerSelectionTests: XCTestCase {
         XCTAssertTrue(CodexRolloutScanner.samples(since: .distantPast, root: root).isEmpty)
     }
 
+    func testSnapshotIsFoundInTheTailOfALargeRollout() throws {
+        let root = try makeRoot()
+        // Filler pushes the snapshot well past the tail window the scanner
+        // reads, so this only passes if the tail is read correctly.
+        let filler = (0..<6000).map {
+            #"{"timestamp":"2026-09-18T09:00:00Z","type":"event_msg","payload":{"type":"note","i":\#($0)}}"#
+        }
+        try write(filler + [tokenCount(percent: 63, minutes: 10080, plan: "pro", at: "2026-09-18T10:00:00Z")],
+                  to: root, name: "big.jsonl", modified: 9000)
+
+        let url = root.appendingPathComponent("big.jsonl")
+        let size = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int ?? 0
+        XCTAssertGreaterThan(size, 262_144, "fixture must exceed the tail window")
+
+        let snapshot = try XCTUnwrap(CodexRolloutScanner.latestSnapshot(root: root))
+        XCTAssertEqual(snapshot.windows.first?.usedPercent, 63)
+    }
+
     // MARK: Backfill samples
 
     func testSamplesFilterByFileRecencyAndIncludeCapError() throws {

@@ -26,10 +26,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var awayRounds = 0
     private var lastShownAt: Date?
     private var isHoverShown = false
+    private var lastRefreshRequest: Date?
 
     private let hoverIntent: TimeInterval = 0.18
     private let reentryWindow: TimeInterval = 1.0
-    private let pollInterval: TimeInterval = 0.12
+    private let refreshDebounce: TimeInterval = 10
+    private let pollInterval: TimeInterval = 0.2
     private let bridge: CGFloat = 14
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -166,8 +168,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isHoverShown = hover
         lastShownAt = Date()
         // Hover re-reads, but respects the live cache TTL so it can't hammer
-        // the endpoints; the explicit Refresh button forces.
-        Task { await store.refresh() }
+        // the endpoints; the explicit Refresh button forces. Repeated opens
+        // within the debounce window reuse the last check.
+        if let last = lastRefreshRequest, Date().timeIntervalSince(last) < refreshDebounce {
+            // fresh enough
+        } else {
+            lastRefreshRequest = Date()
+            Task { await store.refresh() }
+        }
         if hover {
             startProximity()
         } else {

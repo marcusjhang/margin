@@ -16,7 +16,7 @@ public enum CodexRolloutScanner {
         var best: CodexRolloutParser.Snapshot?
         var checked = 0
         for file in rolloutFiles(root: root).prefix(limit) {
-            guard let lines = lines(in: file) else { continue }
+            guard let lines = tailLines(at: file.url) else { continue }
             if let snapshot = CodexRolloutParser.latestSnapshot(inLines: lines) {
                 if let current = best,
                    (snapshot.updatedAt ?? .distantPast) <= (current.updatedAt ?? .distantPast) {
@@ -36,7 +36,7 @@ public enum CodexRolloutScanner {
     /// capped session (which itself carries no plan).
     public static func lastKnownPlanType(limit: Int = 15, root: URL? = nil) -> String? {
         for file in rolloutFiles(root: root).prefix(limit) {
-            guard let lines = lines(in: file) else { continue }
+            guard let lines = tailLines(at: file.url) else { continue }
             if let plan = CodexRolloutParser.lastPlanType(inLines: lines) { return plan }
         }
         return nil
@@ -85,8 +85,27 @@ public enum CodexRolloutScanner {
         return String(data: data, encoding: .utf8)
     }
 
-    private static func lines(in file: RolloutFile) -> [String]? {
-        guard let text = text(at: file.url) else { return nil }
-        return text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+    /// The last `maxBytes` of a file, split into lines.
+    ///
+    /// Rollout files grow without bound (a long session can be tens of MB), but
+    /// the current rate-limit snapshot is always near the end, so reading the
+    /// whole file on every refresh is wasted I/O. A partial first line — when
+    /// the tail happens to start mid-line — is dropped.
+    private static func tailLines(at url: URL, maxBytes: UInt64 = 262_144) -> [String]? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+
+        let size = (try? handle.seekToEnd()) ?? 0
+        let start = size > maxBytes ? size - maxBytes : 0
+        try? handle.seek(toOffset: start)
+
+        guard let data = try? handle.readToEnd(),
+              let text = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        if start > 0, !lines.isEmpty { lines.removeFirst() }
+        return lines
     }
 }

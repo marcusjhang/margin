@@ -20,11 +20,22 @@ enum ClaudeLiveClient {
         }
         cache.noteAttempt(.claude)
 
-        if let token = accessToken(),
-           let data = await fetch(token: token, session: session),
-           let parsed = parse(data: data, planLabel: ClaudeCredentials.planLabel()) {
-            cache.store(.claude, usage: parsed)
-            return parsed
+        // One keychain read per fetch, cached across fetches: the same parsed
+        // blob supplies both the token and the plan label.
+        if let credential = ClaudeCredentials.oauth(), let token = validToken(credential) {
+            switch await fetch(token: token, session: session) {
+            case .success(let data):
+                if let parsed = parse(data: data, planLabel: credential.planLabel) {
+                    cache.store(.claude, usage: parsed)
+                    return parsed
+                }
+            case .unauthorized:
+                // The token we have is stale; drop the cache so the next attempt
+                // re-reads the keychain (the CLI may have refreshed it since).
+                ClaudeCredentials.invalidateCache()
+            case .failure:
+                break
+            }
         }
 
         // Keep the last good value rather than dropping to older local data.
@@ -45,7 +56,13 @@ enum ClaudeLiveClient {
         )
     }
 
-    private static func fetch(token: String, session: URLSession) async -> Data? {
+    private enum FetchResult {
+        case success(Data)
+        case unauthorized
+        case failure
+    }
+
+    private static func fetch(token: String, session: URLSession) async -> FetchResult {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -54,23 +71,19 @@ enum ClaudeLiveClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         guard let (data, response) = try? await session.data(for: request),
-              let http = response as? HTTPURLResponse,
-              http.statusCode == 200 else {
-            return nil
+              let http = response as? HTTPURLResponse else {
+            return .failure
         }
-        return data
+        if http.statusCode == 401 { return .unauthorized }
+        guard http.statusCode == 200 else { return .failure }
+        return .success(data)
     }
 
-    private static func accessToken() -> String? {
-        guard let data = ClaudeCredentials.rawJSON(),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let oauth = root["claudeAiOauth"] as? [String: Any],
-              let token = oauth["accessToken"] as? String,
-              !token.isEmpty else {
-            return nil
-        }
-        // Skip a token we know is expired; the CLI will refresh it next run.
-        if let expiresAt = (oauth["expiresAt"] as? NSNumber)?.doubleValue, expiresAt > 0,
+    /// The credential's token, unless we can tell it is already expired (the
+    /// CLI will refresh it next run).
+    private static func validToken(_ credential: ClaudeCredentials.OAuth) -> String? {
+        guard let token = credential.token else { return nil }
+        if let expiresAt = credential.expiresAt, expiresAt > 0,
            Date(timeIntervalSince1970: expiresAt / 1000) <= Date() {
             return nil
         }

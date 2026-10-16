@@ -20,7 +20,7 @@ public final class UsageStore: ObservableObject {
     public init(
         providers: [UsageProvider] = [ClaudeProvider(), CodexProvider()],
         history: HistoryStore = HistoryStore(),
-        refreshInterval: TimeInterval = 60
+        refreshInterval: TimeInterval = 300
     ) {
         self.providers = providers
         self.history = history
@@ -141,5 +141,8 @@ public final class UsageStore: ObservableObject {
                 await self?.refresh()
             }
         }
+        // A slack window lets the OS coalesce this wakeup with others, which is
+        // what keeps a menu bar app off the energy charts.
+        timer?.tolerance = min(60, refreshInterval * 0.25)
     }
 }

@@ -27,10 +27,14 @@ public final class HistoryStore: @unchecked Sendable {
         }
 
         execute("CREATE TABLE IF NOT EXISTS samples (provider TEXT NOT NULL, window_id TEXT NOT NULL, used_percent REAL NOT NULL, recorded_at REAL NOT NULL);")
-        // Collapse any pre-existing duplicates, then enforce uniqueness so
-        // re-running backfill is idempotent.
-        execute("DELETE FROM samples WHERE rowid NOT IN (SELECT MIN(rowid) FROM samples GROUP BY provider, window_id, recorded_at);")
-        execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_samples_unique ON samples(provider, window_id, recorded_at);")
+        // Collapse any pre-existing duplicates once, then enforce uniqueness so
+        // re-running backfill is idempotent. The de-dupe scans the whole table,
+        // so it only runs when the constraint is first introduced — not on every
+        // launch.
+        if !indexExists("idx_samples_unique") {
+            execute("DELETE FROM samples WHERE rowid NOT IN (SELECT MIN(rowid) FROM samples GROUP BY provider, window_id, recorded_at);")
+            execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_samples_unique ON samples(provider, window_id, recorded_at);")
+        }
         execute("CREATE INDEX IF NOT EXISTS idx_samples_time ON samples(recorded_at);")
     }
 
@@ -50,13 +54,10 @@ public final class HistoryStore: @unchecked Sendable {
         defer { lock.unlock() }
         guard let db, !samples.isEmpty else { return }
 
-        var insert: OpaquePointer?
-        let sql = "INSERT OR IGNORE INTO samples (provider, window_id, used_percent, recorded_at) VALUES (?, ?, ?, ?);"
-        guard sqlite3_prepare_v2(db, sql, -1, &insert, nil) == SQLITE_OK else { return }
-        defer { sqlite3_finalize(insert) }
-
-        execute("BEGIN IMMEDIATE;")
+        // Decide what is genuinely new before touching the database, so a poll
+        // that brings no change costs no disk write at all.
         var lastByWindow: [String: UsageSample] = [:]
+        var pending: [UsageSample] = []
 
         for sample in samples {
             let key = "\(sample.provider.rawValue)|\(sample.windowID)"
@@ -67,7 +68,20 @@ public final class HistoryStore: @unchecked Sendable {
                     continue
                 }
             }
+            pending.append(sample)
+            lastByWindow[key] = sample
+        }
 
+        guard !pending.isEmpty else { return }
+
+        var insert: OpaquePointer?
+        let sql = "INSERT OR IGNORE INTO samples (provider, window_id, used_percent, recorded_at) VALUES (?, ?, ?, ?);"
+        guard sqlite3_prepare_v2(db, sql, -1, &insert, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(insert) }
+
+        execute("BEGIN IMMEDIATE;")
+
+        for sample in pending {
             sqlite3_reset(insert)
             sqlite3_clear_bindings(insert)
             sqlite3_bind_text(insert, 1, (sample.provider.rawValue as NSString).utf8String, -1, sqliteTransient)
@@ -75,7 +89,6 @@ public final class HistoryStore: @unchecked Sendable {
             sqlite3_bind_double(insert, 3, sample.usedPercent)
             sqlite3_bind_double(insert, 4, sample.timestamp.timeIntervalSince1970)
             sqlite3_step(insert)
-            lastByWindow[key] = sample
         }
 
         execute("COMMIT;")
@@ -115,6 +128,16 @@ public final class HistoryStore: @unchecked Sendable {
     private func execute(_ sql: String) {
         guard let db else { return }
         sqlite3_exec(db, sql, nil, nil, nil)
+    }
+
+    private func indexExists(_ name: String) -> Bool {
+        guard let db else { return false }
+        var statement: OpaquePointer?
+        let sql = "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?;"
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return false }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_text(statement, 1, (name as NSString).utf8String, -1, sqliteTransient)
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func query(provider: ProviderID, windowID: String, since: Date, limit: Int, descending: Bool) -> [UsageSample] {
