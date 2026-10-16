@@ -21,7 +21,7 @@ limits:
   max_attempts: 2
 feedback:
   upstream: marcusjhang/personal-software-factory
-  mode: 'off'
+  mode: 'auto'
 classifier:
   provider: mock
   supervisor:
