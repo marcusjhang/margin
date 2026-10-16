@@ -4,7 +4,6 @@ import SwiftUI
 
 public struct PopoverView: View {
     @EnvironmentObject private var store: UsageStore
-    @EnvironmentObject private var activityStore: ActivityStore
     @State private var selection: ProviderID?
     private let showsFooter: Bool
 
@@ -17,20 +16,12 @@ public struct PopoverView: View {
             header
             Divider()
             content
-            if showsActivity {
-                Divider()
-                ActivitySection()
-            }
             if showsFooter {
                 Divider()
                 footer
             }
         }
         .frame(width: 300)
-    }
-
-    private var showsActivity: Bool {
-        !activityStore.events.isEmpty || !activityStore.alerts.isEmpty
     }
 
     private var selected: ProviderSnapshot? {

@@ -16,11 +16,9 @@ private final class HoverSentinel: NSResponder {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let store = UsageStore()
-    private let activityStore = ActivityStore()
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var cancellables = Set<AnyCancellable>()
-    private var watch: Severity = .normal
 
     private let hoverSentinel = HoverSentinel()
     private var showTask: Task<Void, Never>?
@@ -39,7 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         configurePopover()
         observeStore()
         store.start()
-        activityStore.start()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
@@ -76,9 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let popover = NSPopover()
         popover.animates = true
         popover.contentViewController = NSHostingController(
-            rootView: PopoverView()
-                .environmentObject(store)
-                .environmentObject(activityStore)
+            rootView: PopoverView().environmentObject(store)
         )
         self.popover = popover
 
@@ -98,18 +93,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.updateGlyph(snapshots)
             }
             .store(in: &cancellables)
-
-        activityStore.$alerts
-            .receive(on: RunLoop.main)
-            .sink { [weak self] alerts in
-                self?.watch = SentinelRules.watchSeverity(alerts)
-                self?.updateGlyph(self?.store.snapshots ?? [])
-            }
-            .store(in: &cancellables)
     }
 
     private func updateGlyph(_ snapshots: [ProviderSnapshot]) {
-        statusItem?.button?.image = StatusItemGlyph.image(for: snapshots, style: .levels, watch: watch)
+        statusItem?.button?.image = StatusItemGlyph.image(for: snapshots, style: .levels)
     }
 
     // MARK: - Hover

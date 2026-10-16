@@ -96,15 +96,3 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.margin.preview
     scheme: {}
-
-  MarginCLI:
-    type: tool
-    platform: macOS
-    sources:
-      - Sources/MarginCLI
-    dependencies:
-      - target: MarginCore
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.margin.cli
-    scheme: {}
